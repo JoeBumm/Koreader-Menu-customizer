@@ -47,7 +47,7 @@ Some critical items cannot be disabled on some devices:
 
 ## Troubleshooting
 ### If KOReader Crashes Completely / Refuses to open 
-1. **Access settings directory** using a file manager:
+1. **Access settings directory** using a file manager (By using a usb connection or by ssh):
    - Android: `/sdcard/koreader/settings/`
    - Linux: `~/.config/koreader/settings/`
    - Kobo: `/mnt/onboard/.adds/koreader/settings/`
