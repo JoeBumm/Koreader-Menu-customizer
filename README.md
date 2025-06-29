@@ -22,9 +22,11 @@ KOReader’s interface can feel cluttered or overwhelming, especially for new us
 - **File Manager Menus:** (When in file browser)
   - Select "Customize File Manager Menus"
   - Tap any menu item to enable/disable it
+  - **Scroll to the last page and press Save**
 - **Reader Menus:** (When reading a document)
   - Select "Customize Reader Menus"
   - Tap any menu item to enable/disable it
+  - **Scroll to the last page and press Save**
 
 ### Protected Items
 Some critical items cannot be disabled on some devices:
@@ -65,7 +67,7 @@ Some critical items cannot be disabled on some devices:
      - Delete the entire `settings` directory (backup first if possible)
 
 ### Common Issues
-- **Changes not appearing?** Remember to restart KOReader after saving
+- **Changes not appearing?** After disabling a menu **Scroll to the last page and press Save** and Remember to restart KOReader after saving
 - **Menu items reappearing?** Some core menus are protected and cannot be disabled
 - **Plugin not showing?** Ensure the plugin folder is named exactly `menu_disabler.koplugin`
 
