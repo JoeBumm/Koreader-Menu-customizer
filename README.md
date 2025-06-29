@@ -4,7 +4,7 @@
 This plugin allows you to customize KOReader's menu system by hiding specific menus and plugins. It helps streamline your reading experience by removing unnecessary menu items while protecting critical functions like plugin management.
 
 ## Installation
-1. Download the plugin ZIP file from the [Releases page](link-to-releases)
+1. Download the plugin ZIP file from the [Releases page](https://github.com/JoeBumm/menu_customizer.koplugin/releases/)
 2. Extract the ZIP to get the `menu_disabler.koplugin` folder
 3. Transfer this folder to your KOReader plugins directory:
    - **Android:** `/sdcard/koreader/plugins/`
