@@ -60,6 +60,7 @@ Some critical items cannot be disabled on some devices:
 3. **If crashes persist:**
    - Remove the plugin:
      - Delete `menu_disabler.koplugin` from your plugins directory
+   Still persists? 
    - Reset KOReader settings:
      - Delete the entire `settings` directory (backup first if possible)
 
