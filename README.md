@@ -47,7 +47,7 @@ Some critical items cannot be disabled on some devices:
 
 ## Troubleshooting
 ### If KOReader Crashes Completely / Refuses to open 
-1. **Access settings directory** using a file manager (By using a usb connection or by ssh):
+1. **Access settings directory** using a file manager (By using a usb connection or by using ssh):
    - Android: `/sdcard/koreader/settings/`
    - Linux: `~/.config/koreader/settings/`
    - Kobo: `/mnt/onboard/.adds/koreader/settings/`
@@ -68,22 +68,6 @@ Some critical items cannot be disabled on some devices:
 - **Changes not appearing?** Remember to restart KOReader after saving
 - **Menu items reappearing?** Some core menus are protected and cannot be disabled
 - **Plugin not showing?** Ensure the plugin folder is named exactly `menu_disabler.koplugin`
-
-## Recovery Options
-1. **Manual Recovery Mode:**
-   - Hold "R" key while starting KOReader (on devices with keyboards)
-   - Select "Reset settings to defaults"
-
-2. **ADB Recovery (Android):**
-   ```bash
-   adb shell rm -rf /sdcard/koreader/settings/menu_*.lua
-   ```
-
-3. **SSH Recovery (Linux/Kobo):**
-   ```bash
-   ssh root@kobo-ip
-   rm /mnt/onboard/.adds/koreader/settings/menu_*.lua
-   ```
 
 ## Support
 For additional help:
