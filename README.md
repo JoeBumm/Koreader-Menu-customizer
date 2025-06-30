@@ -27,6 +27,14 @@ KOReader’s interface can feel cluttered or overwhelming, especially for new us
   - Select "Customize Reader Menus"
   - Tap any menu item to enable/disable it
   - **Scroll to the last page and press Save**
+- **Reset to Default:**
+  - Tap **"Reset to Default"** to restore all menus (File Manager and Reader) to their original state.
+  - This will remove any customizations you've made and reload the default KOReader menu structure.
+  - A confirmation dialog will appear before changes are applied.
+- **Copy File Manager to Reader:**
+  - Tap **"Copy File Manager to Reader"** to apply your current File Manager menu configuration to the Reader menus.
+  - This is useful if you want a consistent menu layout across both modes. And it's fast if you are lazy.
+  - You can still further customize the Reader menu after copying.
 
 ### Protected Items
 Some critical items cannot be disabled on some devices:
