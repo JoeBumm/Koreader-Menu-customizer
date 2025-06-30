@@ -937,6 +937,7 @@ function MenuDisabler:resetAllItems(menu_type, filename)
     })
 end
 
+-- Updated addToMainMenu method with new copy button
 function MenuDisabler:addToMainMenu(menu_items)
     menu_items.menu_disabler = {
         text = _("Menu Disabler"),
@@ -951,6 +952,12 @@ function MenuDisabler:addToMainMenu(menu_items)
                 text = _("Customize Reader Menus (When you are inside a document)"),
                 callback = function()
                     self:showMenuDisabler("reader")
+                end
+            },
+            {
+                text = _("Copy File-Manager settings to Reader"),
+                callback = function()
+                    self:copyFileManagerToReader()
                 end
             },
             {
@@ -969,6 +976,66 @@ function MenuDisabler:addToMainMenu(menu_items)
         }
     }
     return menu_items
+end
+
+-- New method to copy file manager configuration to reader
+function MenuDisabler:copyFileManagerToReader()
+    UIManager:show(ConfirmBox:new{
+        text = _("This will copy your File Manager menu configuration to the Reader menus.\n\nWARNING: This will override your current Reader menu settings!\n\nContinue?"),
+        ok_text = _("Copy Settings"),
+        cancel_text = _("Cancel"),
+        ok_callback = function()
+            self:performCopyFileManagerToReader()
+        end,
+    })
+end
+
+-- New method to perform the actual copying
+function MenuDisabler:performCopyFileManagerToReader()
+    local fm_filename = "filemanager_menu_order.lua"
+    local reader_filename = "reader_menu_order.lua"
+    
+    -- Read the file manager configuration
+    local fm_config = self:readMenuOrderFile(fm_filename)
+    
+    if not fm_config then
+        UIManager:show(InfoMessage:new{
+            text = _("No File Manager configuration found.\nPlease customize File Manager menus first."),
+            timeout = 4,
+        })
+        return
+    end
+    
+    -- Save the file manager configuration as reader configuration
+    local fm_filepath = self.settings_path .. "/" .. fm_filename
+    local reader_filepath = self.settings_path .. "/" .. reader_filename
+    
+    -- Simple file copy approach
+    local success = false
+    local fm_file = io.open(fm_filepath, "r")
+    if fm_file then
+        local content = fm_file:read("*all")
+        fm_file:close()
+        
+        local reader_file = io.open(reader_filepath, "w")
+        if reader_file then
+            reader_file:write(content)
+            reader_file:close()
+            success = true
+        end
+    end
+    
+    if success then
+        UIManager:show(InfoMessage:new{
+            text = _("File Manager settings copied to Reader successfully!\n\nRestart KOReader to see changes."),
+            timeout = 4,
+        })
+    else
+        UIManager:show(InfoMessage:new{
+            text = _("Error copying settings. Please try again."),
+            timeout = 3,
+        })
+    end
 end
 
 -- Enable all menus by deleting override files
