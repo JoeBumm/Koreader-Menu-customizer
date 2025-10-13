@@ -17,7 +17,8 @@ KOReader’s interface can feel cluttered or overwhelming, especially for new us
    - **Kindle:** `/mnt/us/koreader/plugins/`
 4. Restart KOReader
 
-⚠️ Known Issue: "NEW:" Labels Appearing on Menu Items
+### ⚠️ Known Issue: "NEW:" Labels Appearing on Menu Items
+
 If you notice unexpected "NEW:" tags appearing on many menu entries (including core features like Book information or Status bar), this is a known KOReader backend issue related to how menu rendering works.
 
 It occurs after customizing menus or using the Menu Disabler plugin, and can make KOReader appear broken — but it’s only a cosmetic problem.
