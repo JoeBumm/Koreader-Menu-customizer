@@ -9,7 +9,7 @@ KOReader’s interface can feel cluttered or overwhelming, especially for new us
 
 ## Installation
 1. Download the plugin ZIP file from the [Releases page](https://github.com/JoeBumm/menu_customizer.koplugin/releases/)
-2. Extract the ZIP to get the `menu_disabler.koplugin` folder
+2. Extract the ZIP to get the `menu_customizer.koplugin` folder
 3. Transfer this folder to your KOReader plugins directory:
    - **Android:** `/sdcard/koreader/plugins/`
    - **Linux:** `~/.config/koreader/plugins/`
@@ -32,7 +32,7 @@ For more details, see the related discussion:
 ## Usage
 ### Accessing the Plugin
 1. Open KOReader's main menu
-2. Navigate to: **More tools → Menu Disabler**
+2. Navigate to: **More tools → Menu Customizer**
 
 ### Customizing Menus
 - **File Manager Menus:** (When in file browser)
