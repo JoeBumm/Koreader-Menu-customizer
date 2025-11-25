@@ -2,1064 +2,818 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local UIManager = require("ui/uimanager")
 local InfoMessage = require("ui/widget/infomessage")
 local ConfirmBox = require("ui/widget/confirmbox")
+local InputDialog = require("ui/widget/inputdialog")
 local Menu = require("ui/widget/menu")
-local ButtonTable = require("ui/widget/buttontable")
-local Screen = require("device").screen
-local lfs = require("libs/libkoreader-lfs")
 local Device = require("device")
+local lfs = require("libs/libkoreader-lfs")
+local util = require("util")
+local logger = require("logger")
 local _ = require("gettext")
 
--- Register with More Tools menu BEFORE plugin initialization
 require("ui/plugin/insert_menu").add("menu_disabler")
 
 local MenuDisabler = WidgetContainer:extend{
-    name = "menu_disabler",
-
     is_doc_only = false,
+    settings_path = require("datastorage"):getSettingsDir(),
+    editing_cache = nil,
+    active_dialog = nil,
+    profiles_file = "menu_disabler_profiles.lua",
 }
 
 local protected_items = {
     { section = "tools", item = "more_tools" },
+    { section = "more_tools", item = "menu_disabler" },
     { section = "more_tools", item = "plugin_management" },
     { section = "more_tools", item = "patch_management" },
+    { section = "KOMenu:menu_buttons", item = "filemanager_settings" },
+    { section = "KOMenu:menu_buttons", item = "setting" },
+    { section = "KOMenu:menu_buttons", item = "tools" },
+    { section = "KOMenu:menu_buttons", item = "search" },
+    { section = "KOMenu:menu_buttons", item = "plus_menu" },
+    { section = "KOMenu:menu_buttons", item = "main" },
+    { section = "exit_menu", item = "restart_koreader" },
+    { section = "main", item = "ota_update" },
+    { section = "setting", item = "device" },
+    { section = "setting", item = "navigation" },
+    { section = "filemanager_settings", item = "filemanager_display_mode" },
+    { section = "navigation", item = "back_to_exit" },
+    { section = "navigation", item = "back_in_filemanager" },
+    { section = "navigation", item = "back_in_reader" },
+    { section = "navigation", item = "backspace_as_back" },
+    { section = "navigation", item = "physical_buttons_setup" },
+    { section = "navigation", item = "android_volume_keys" },
+    { section = "navigation", item = "android_haptic_feedback" },
+    { section = "navigation", item = "android_back_button" },
+    { section = "navigation", item = "opening_page_location_stack" },
+    { section = "navigation", item = "skim_dialog_position" },
 }
 
--- Define default menu structures as local functions
-local function getDefaultMenuStructure()
-    local base_structure = {
-        ["KOMenu:menu_buttons"] = {
-            "filemanager_settings",
-            "setting",
-            "tools",
-            "search",
-            "plus_menu",
-            "main",
-        },
-        filemanager_settings = {
-            "filemanager_display_mode",
-            "filebrowser_settings",
-            "show_filter",
-            "sort_by",
-            "reverse_sorting",
-            "sort_mixed",
-            "start_with",
-        },
-        setting = {
-            "frontlight",
-            "night_mode",
-            "network",
-            "screen",
-            "taps_and_gestures",
-            "navigation",
-            "document",
-            "language",
-            "device",
-        },
-        document = {
-            "document_metadata_location",
-            "document_metadata_location_move",
-            "document_auto_save",
-            "document_end_action",
-            "language_support",
-        },
-        device = {
-            "keyboard_layout",
-            "external_keyboard",
-            "font_ui_fallbacks",
-            "time",
-            "units",
-            "device_status_alarm",
-            "charging_led",
-            "autostandby",
-            "autosuspend",
-            "autoshutdown",
-            "ignore_sleepcover",
-            "ignore_open_sleepcover",
-            "cover_events",
-            "ignore_battery_optimizations",
-            "mass_storage_settings",
-            "file_ext_assoc",
-            "screenshot",
-        },
-        navigation = {
-            "back_to_exit",
-            "back_in_filemanager",
-            "back_in_reader",
-            "backspace_as_back",
-            "physical_buttons_setup",
-            "android_volume_keys",
-            "android_haptic_feedback",
-            "android_back_button",
-            "opening_page_location_stack",
-            "skim_dialog_position",
-        },
-        network = {
-            "network_wifi",
-            "network_proxy",
-            "network_powersave",
-            "network_restore",
-            "network_info",
-            "network_before_wifi_action",
-            "network_after_wifi_action",
-            "network_dismiss_scan",
-            "ssh",
-        },
-        screen = {
-            "screensaver",
-            "autodim",
-            "screen_rotation",
-            "screen_dpi",
-            "screen_eink_opt",
-            "autowarmth",
-            "color_rendering",
-            "screen_timeout",
-            "fullscreen",
-            "screen_notification",
-        },
-        taps_and_gestures = {
-            "gesture_manager",
-            "gesture_overview",
-            "gesture_intervals",
-            "ignore_hold_corners",
-            "screen_disable_double_tap",
-            "menu_activate",
-        },
-        tools = {
-            "read_timer",
-            "calibre",
-            "exporter",
-            "statistics",
-            "cloud_storage",
-            "move_to_archive",
-            "wallabag",
-            "news_downloader",
-            "text_editor",
-            "profiles",
-            "qrclipboard",
-            "more_tools",
-        },
-        more_tools = {
-            "auto_frontlight",
-            "battery_statistics",
-            "book_shortcuts",
-            "synchronize_time",
-            "keep_alive",
-            "doc_setting_tweak",
-            "terminal",
-            "plugin_management",
-            "patch_management",
-            "advanced_settings",
-            "developer_options",
-        },
-        search = {
-            "search_settings",
-            "dictionary_lookup",
-            "dictionary_lookup_history",
-            "vocabbuilder",
-            "wikipedia_lookup",
-            "wikipedia_history",
-            "file_search",
-            "file_search_results",
-            "find_book_in_calibre_catalog",
-            "opds",
-        },
-        search_settings = {
-            "dictionary_settings",
-            "wikipedia_settings",
-        },
-        main = {
-            "history",
-            "open_last_document",
-            "favorites",
-            "collections",
-            "mass_storage_actions",
-            "ota_update",
-            "help",
-            "exit_menu",
-        },
-        help = {
-            "quickstart_guide",
-            "search_menu",
-            "report_bug",
-            "system_statistics",
-            "version",
-            "about",
-        },
-        plus_menu = {},
-        exit_menu = {
-            "restart_koreader",
-            "sleep",
-            "poweroff",
-            "reboot",
-            "start_bq",
-            "exit",
-        }
-    }
-    
-    -- Filter out device-specific items that don't exist
-    if not Device:hasExitOptions() then
-        base_structure.exit_menu = nil
-    end
-    
-    return base_structure
-end
-
--- Define properly formatted output structure with comments
-local function getDefaultOutputStructure()
-    return {
-        filemanager_settings = {
-            "filemanager_display_mode",
-            "filebrowser_settings",
-            "----------------------------",
-            "show_filter",
-            "sort_by",
-            "reverse_sorting",
-            "sort_mixed",
-            "----------------------------",
-            "start_with",
-        },
-        setting = {
-            "-- common settings",
-            "-- those that don't exist will simply be skipped during menu gen",
-            "frontlight", -- if Device:hasFrontlight()
-            "night_mode",
-            "----------------------------",
-            "network",
-            "screen",
-            "----------------------------",
-            "taps_and_gestures",
-            "navigation",
-            "document",
-            "----------------------------",
-            "language",
-            "device",
-            "-- end common settings",
-        },
-        document = {
-            "document_metadata_location",
-            "document_metadata_location_move",
-            "document_auto_save",
-            "document_end_action",
-            "language_support",
-        },
-        device = {
-            "keyboard_layout",
-            "external_keyboard",
-            "font_ui_fallbacks",
-            "----------------------------",
-            "time",
-            "units",
-            "device_status_alarm",
-            "charging_led", -- if Device:canToggleChargingLED()
-            "autostandby",
-            "autosuspend",
-            "autoshutdown",
-            "ignore_sleepcover",
-            "ignore_open_sleepcover",
-            "cover_events",
-            "ignore_battery_optimizations",
-            "mass_storage_settings", -- if Device:canToggleMassStorage()
-            "file_ext_assoc",
-            "screenshot",
-        },
-        navigation = {
-            "back_to_exit",
-            "back_in_filemanager",
-            "back_in_reader",
-            "backspace_as_back",
-            "----------------------------",
-            "physical_buttons_setup",
-            "----------------------------",
-            "android_volume_keys",
-            "android_haptic_feedback",
-            "android_back_button",
-            "----------------------------",
-            "opening_page_location_stack",
-            "skim_dialog_position",
-        },
-        network = {
-            "network_wifi",
-            "network_proxy",
-            "network_powersave",
-            "network_restore",
-            "network_info",
-            "network_before_wifi_action",
-            "network_after_wifi_action",
-            "network_dismiss_scan",
-            "----------------------------",
-            "ssh",
-        },
-        screen = {
-            "screensaver",
-            "autodim",
-            "----------------------------",
-            "screen_rotation",
-            "----------------------------",
-            "screen_dpi",
-            "screen_eink_opt",
-            "autowarmth",
-            "color_rendering",
-            "----------------------------",
-            "screen_timeout",
-            "fullscreen",
-            "----------------------------",
-            "screen_notification",
-        },
-        taps_and_gestures = {
-            "gesture_manager",
-            "gesture_overview",
-            "gesture_intervals",
-            "----------------------------",
-            "ignore_hold_corners",
-            "screen_disable_double_tap",
-            "----------------------------",
-            "menu_activate",
-        },
-        tools = {
-            "read_timer",
-            "calibre",
-            "exporter",
-            "statistics",
-            "cloud_storage",
-            "move_to_archive",
-            "wallabag",
-            "news_downloader",
-            "text_editor",
-            "profiles",
-            "qrclipboard",
-            "----------------------------",
-            "more_tools",
-        },
-        more_tools = {
-            "auto_frontlight",
-            "battery_statistics",
-            "book_shortcuts",
-            "synchronize_time",
-            "keep_alive",
-            "doc_setting_tweak",
-            "terminal",
-            "----------------------------",
-            "plugin_management",
-            "patch_management",
-            "advanced_settings",
-            "developer_options",
-        },
-        search = {
-            "search_settings",
-            "----------------------------",
-            "dictionary_lookup",
-            "dictionary_lookup_history",
-            "vocabbuilder",
-            "----------------------------",
-            "wikipedia_lookup",
-            "wikipedia_history",
-            "----------------------------",
-            "file_search",
-            "file_search_results",
-            "find_book_in_calibre_catalog",
-            "----------------------------",
-            "opds",
-        },
-        search_settings = {
-            "dictionary_settings",
-            "wikipedia_settings",
-        },
-        main = {
-            "history",
-            "open_last_document",
-            "----------------------------",
-            "favorites",
-            "collections",
-            "----------------------------",
-            "mass_storage_actions", -- if Device:canToggleMassStorage()
-            "----------------------------",
-            "ota_update", -- if Device:hasOTAUpdates()
-            "help",
-            "----------------------------",
-            "exit_menu",
-        },
-        help = {
-            "quickstart_guide",
-            "----------------------------",
-            "search_menu",
-            "----------------------------",
-            "report_bug",
-            "----------------------------",
-            "system_statistics", -- if enabled (Plugin)
-            "version",
-            "about",
-        },
-        plus_menu = {},
-        exit_menu = {
-            "restart_koreader",
-            "sleep",
-            "poweroff",
-            "reboot",
-            "start_bq",
-            "exit",
-        }
-    }
-end
-
--- Function to get all plugin names
-function MenuDisabler:getAvailablePlugins()
-    local plugins = {}
-    
-    -- Look for plugins in koreader/plugins directory
-    local plugin_paths = {
-        "plugins", -- Standard plugins
-        "plugins/patch" -- Patch management
-    }
-    
-    for _, path in ipairs(plugin_paths) do
-        local full_path = self.settings_path:gsub("settings$", "") .. path
-        if lfs.attributes(full_path, "mode") == "directory" then
-            for file in lfs.dir(full_path) do
-                if file ~= "." and file ~= ".." then
-                    local plugin_dir = full_path .. "/" .. file
-                    if lfs.attributes(plugin_dir, "mode") == "directory" then
-                        local main_file = plugin_dir .. "/main.lua"
-                        if lfs.attributes(main_file, "mode") == "file" then
-                            -- Try to find the plugin name
-                            local f = io.open(main_file, "r")
-                            if f then
-                                local content = f:read("*all")
-                                f:close()
-                                
-                                -- Look for addToMainMenu function
-                                local pattern = "function.-:addToMainMenu%(%s*menu_items%s*%)%s*menu_items%.([%w_]+)%s*="
-                                local name = content:match(pattern)
-                                
-                                if name then
-                                    plugins[name] = file
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    return plugins
-end
-
-function MenuDisabler:init()
-    self.ui.menu:registerToMainMenu(self)
-    
-    -- Initialize settings path
-    self.settings_path = require("datastorage"):getSettingsDir()
-
-end
-
--- Helper function to read existing menu order file
-function MenuDisabler:readMenuOrderFile(filename)
-    local filepath = self.settings_path .. "/" .. filename
-    if lfs.attributes(filepath, "mode") == "file" then
-        local chunk = loadfile(filepath)
-        if chunk then
-            local success, result = pcall(chunk)
-            if success and type(result) == "table" then
-                return result
-            end
-        end
-    end
-    return nil
-end
-
--- Get list of main sections that users can customize
-function MenuDisabler:getCustomizableSections()
-    return {
-        "tools",
-        "more_tools", 
-        "search",
-        "main",
-        "setting",
-        "filemanager_settings",
-        "help",
-        "plus_menu"
-    }
-end
-
--- Get currently enabled structure including disabled items
-function MenuDisabler:getCurrentEnabledStructure(menu_type, filename)
-    local current_menu = self:readMenuOrderFile(filename)
-    local default_structure = getDefaultMenuStructure()
-    
-    if current_menu then
-        -- Preserve disabled items
-        self.existing_disabled = current_menu["KOMenu:disabled"] or {}
-        return current_menu
-    else
-        self.existing_disabled = {}
-        return default_structure
-    end
-end
-
--- Collect all disabled menu items including plugins
-function MenuDisabler:collectDisabledItems()
-    local disabled_items = {}
-    local default_structure = getDefaultMenuStructure()
-    local customizable_sections = self:getCustomizableSections()
-    local available_plugins = self:getAvailablePlugins()
-    
-    -- First add existing disabled items
-    for _, item in ipairs(self.existing_disabled) do
-        table.insert(disabled_items, item)
-    end
-    
-    -- Collect disabled native items
-    for _, section in ipairs(customizable_sections) do
-        if default_structure[section] then
-            for _, item in ipairs(default_structure[section]) do
-                if item ~= "----------------------------" then
-                    if self.working_enabled[section] and self.working_enabled[section][item] == false then
-                        if not self:isInList(disabled_items, item) then
-                            table.insert(disabled_items, item)
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Collect disabled plugins
-    for plugin_name, _ in pairs(available_plugins) do
-        local prefixed_name = "plugin_" .. plugin_name
-        local is_enabled = false
-        
-        -- Check all sections to see if this plugin is enabled
-        for _, section in ipairs(customizable_sections) do
-            if self.working_enabled[section] and self.working_enabled[section][prefixed_name] == true then
-                is_enabled = true
-                break
-            end
-        end
-        
-        if not is_enabled then
-            if not self:isInList(disabled_items, plugin_name) then
-                table.insert(disabled_items, plugin_name)
-            end
-        end
-    end
-    
-    return disabled_items
-end
-
--- Helper function to check if item is in list
-function MenuDisabler:isInList(list, item)
-    for _, v in ipairs(list) do
-        if v == item then
-            return true
-        end
-    end
-    return false
-end
-
--- Save menu order file with proper formatting
-function MenuDisabler:saveMenuOrderFile(filename, enabled_structure)
-    local filepath = self.settings_path .. "/" .. filename
-    local file = io.open(filepath, "w")
-    if not file then return false, _("Could not write to file") end
-
-    local output_structure = getDefaultOutputStructure()
-    
-    -- Ensure protected items are included in the output
-    for _, protected in ipairs(protected_items) do
-        local section = protected.section
-        local item = protected.item
-        
-        -- Add to output structure if missing
-        local found = false
-        if output_structure[section] then
-            for _, existing_item in ipairs(output_structure[section]) do
-                if existing_item == item then
-                    found = true
-                    break
-                end
-            end
-        end
-        
-        if not found then
-            if not output_structure[section] then
-                output_structure[section] = {}
-            end
-            table.insert(output_structure[section], item)
-        end
-    end
-    
-    file:write("return {\n")
-    
-    -- Write all regular sections
-    for section, default_items in pairs(output_structure) do
-        file:write("    " .. section .. " = {\n")
-        
-        for _, item in ipairs(default_items) do
-            -- Handle comments (lines starting with --)
-            if item:sub(1, 2) == "--" then
-                file:write("        " .. item .. "\n")
-            -- Handle separators (exactly "----------------------------")
-            elseif item == "----------------------------" then
-                file:write('        "' .. item .. '",\n')
-            -- Handle regular menu items
-            else
-                -- Only include if enabled
-                local should_include = true
-                if self.working_enabled[section] then
-                    should_include = self.working_enabled[section][item] == true
-                end
-                
-                if should_include then
-                    file:write('        "' .. item .. '",\n')
-                end
-            end
-        end
-        
-        -- Add any plugins that are enabled for this section
-        if self.working_enabled[section] then
-            for item, enabled in pairs(self.working_enabled[section]) do
-                if enabled == true and item:match("^plugin_") then
-                    -- Write plugin name without "plugin_" prefix
-                    file:write('        "' .. item:sub(8) .. '",\n')
-                end
-            end
-        end
-        
-        file:write("    },\n")
-    end
-    
-    -- Add disabled items section at the end
-    local disabled_items = self:collectDisabledItems()
-    file:write('    ["KOMenu:disabled"] = {\n')
-    if #disabled_items > 0 then
-        for _, item in ipairs(disabled_items) do
-            file:write('        "' .. item .. '",\n')
-        end
-    else
-        file:write('        -- No disabled menu items\n')
-    end
-    file:write("    },\n")
-    
-    file:write("}\n")
-    file:close()
-    return true
-end
-
--- Show menu disabler interface
-function MenuDisabler:showMenuDisabler(menu_type)
-    local filename = menu_type .. "_menu_order.lua"
-    
-    -- Get currently enabled structure
-    local enabled_structure = self:getCurrentEnabledStructure(menu_type, filename)
-    local default_structure = getDefaultMenuStructure()
-    
-    -- Create working copy - track which items are enabled per section
-    self.working_enabled = {}
-    local customizable_sections = self:getCustomizableSections()
-    
-    for _, section in ipairs(customizable_sections) do
-        self.working_enabled[section] = {}
-        if enabled_structure[section] then
-            for _, item in ipairs(enabled_structure[section]) do
-                if item ~= "----------------------------" then
-                    self.working_enabled[section][item] = true
-                end
-            end
-        end
-    end
-    
-    -- Add plugin management to the list
-    self:addPluginManagement()
-    
-    -- Force protected items to be enabled
-    for _, protected in ipairs(protected_items) do
-        local section = protected.section
-        local item = protected.item
-        if not self.working_enabled[section] then
-            self.working_enabled[section] = {}
-        end
-        self.working_enabled[section][item] = true
-    end
-    
-    self:showItemList(menu_type, filename)
-end
-
--- Add plugin management options - MODIFIED TO ADD TO MORE_TOOLS
-function MenuDisabler:addPluginManagement()
-    local available_plugins = self:getAvailablePlugins()
-    local customizable_sections = self:getCustomizableSections()
-    
-    for plugin_name, _ in pairs(available_plugins) do
-        -- Create a prefixed name to avoid conflicts
-        local prefixed_name = "plugin_" .. plugin_name
-        
-        -- Check if plugin is already in any section
-        local found = false
-        for _, section in ipairs(customizable_sections) do
-            if self.working_enabled[section] and self.working_enabled[section][prefixed_name] ~= nil then
-                found = true
-                break
-            end
-        end
-        
-        -- CHANGED: Default to more_tools instead of plus_menu
-        if not found then
-            if not self.working_enabled.more_tools then
-                self.working_enabled.more_tools = {}
-            end
-            -- Only add if not already present
-            if self.working_enabled.more_tools[prefixed_name] == nil then
-                self.working_enabled.more_tools[prefixed_name] = true
-            end
-        end
-    end
-end
-
--- Show list of items that can be disabled/enabled
-function MenuDisabler:showItemList(menu_type, filename)
-    local menu_items = {}
-    local default_structure = getDefaultMenuStructure()
-    local customizable_sections = self:getCustomizableSections()
-    local available_plugins = self:getAvailablePlugins()
-    
-    -- Add header
-    table.insert(menu_items, {
-        text = _("=== TAP TO TOGGLE DISABLE/ENABLE ==="),
-        enabled = false,
-    })
-    
-    -- Process each customizable section
-    for _, section in ipairs(customizable_sections) do
-        if default_structure[section] or self.working_enabled[section] then
-            -- Add section header
-            local section_title = section:gsub("_", " "):upper()
-            table.insert(menu_items, {
-                text = "--- " .. section_title .. " ---",
-                enabled = false,
-            })
-            
-            -- Get all items for this section (native + plugins)
-            local all_items = {}
-            
-            -- Add native items from default structure
-            if default_structure[section] then
-                for _, item in ipairs(default_structure[section]) do
-                    if item ~= "----------------------------" then
-                        table.insert(all_items, item)
-                    end
-                end
-            end
-            
-            -- Add plugin items
-            if self.working_enabled[section] then
-                for item, enabled in pairs(self.working_enabled[section]) do
-                    if item:match("^plugin_") and enabled ~= nil then
-                        table.insert(all_items, item)
-                    end
-                end
-            end
-            
-            -- Show all items except protected ones
-            for _, item in ipairs(all_items) do
-                -- Check if this item is protected
-                local is_protected = false
-                for _, protected in ipairs(protected_items) do
-                    if protected.section == section and protected.item == item then
-                        is_protected = true
-                        break
-                    end
-                end
-                
-                if not is_protected then
-                    local is_plugin = item:match("^plugin_")
-                    local is_enabled = self.working_enabled[section] and 
-                                      self.working_enabled[section][item] == true
-                    local status = is_enabled and "✓ ENABLED" or "🚫 DISABLED"
-                    local display_name = item
-                    
-                    -- Special handling for plugins
-                    if is_plugin then
-                        local plugin_base = item:gsub("^plugin_", "")
-                        display_name = available_plugins[plugin_base] and 
-                            ("Plugin: " .. plugin_base) or 
-                            ("Plugin: " .. item)
-                    else
-                        display_name = item:gsub("_", " ")
-                    end
-                    
-                    table.insert(menu_items, {
-                        text = "  " .. display_name .. " (" .. status .. ")",
-                        callback = function()
-                            -- Toggle enabled status
-                            if not self.working_enabled[section] then
-                                self.working_enabled[section] = {}
-                            end
-                            self.working_enabled[section][item] = not self.working_enabled[section][item]
-                            UIManager:close(self.item_dialog)
-                            self:showItemList(menu_type, filename)
-                        end,
-                    })
-                end
-            end
-        end
-    end
-    
-    -- Add separator and action buttons
-    table.insert(menu_items, {
-        text = "",
-        enabled = false,
-    })
-    
-    table.insert(menu_items, {
-        text = _("💾 Save Changes"),
-        callback = function()
-            UIManager:close(self.item_dialog)
-            self:saveChanges(menu_type, filename)
-        end,
-    })
-    
-    table.insert(menu_items, {
-        text = _("↺ Reset All (Enable All)"),
-        callback = function()
-            UIManager:close(self.item_dialog)
-            self:resetAllItems(menu_type, filename)
-        end,
-    })
-    
-    table.insert(menu_items, {
-        text = _("✕ Cancel"),
-        callback = function()
-            UIManager:close(self.item_dialog)
-        end,
-    })
-    
-    self.item_dialog = Menu:new{
-        title = _("Menu Disabler") .. " - " .. menu_type:gsub("^%l", string.upper),
-        item_table = menu_items,
-        width = Screen:getWidth() * 0.9,
-        height = Screen:getHeight() * 0.9,
-    }
-    
-    UIManager:show(self.item_dialog)
-end
-
--- Save changes to file
-function MenuDisabler:saveChanges(menu_type, filename)
-    local default_structure = getDefaultMenuStructure()
-    local enabled_structure = {}
-    local customizable_sections = self:getCustomizableSections()
-    
-    -- Copy the complete default structure
-    for section_name, items in pairs(default_structure) do
-        enabled_structure[section_name] = {}
-        if type(items) == "table" then
-            for _, item in ipairs(items) do
-                enabled_structure[section_name][#enabled_structure[section_name] + 1] = item
-            end
-        end
-    end
-    
-    -- Now filter out disabled items from customizable sections
-    local total_enabled = 0
-    local total_available = 0
-    
-    for _, section in ipairs(customizable_sections) do
-        if self.working_enabled[section] then
-            local filtered_items = {}
-            
-            -- Add default items
-            if enabled_structure[section] then
-                for _, item in ipairs(enabled_structure[section]) do
-                    if item == "----------------------------" then
-                        -- Always keep separators
-                        table.insert(filtered_items, item)
-                    else
-                        total_available = total_available + 1
-                        if self.working_enabled[section][item] == true then
-                            table.insert(filtered_items, item)
-                            total_enabled = total_enabled + 1
-                        end
-                    end
-                end
-            end
-            
-            -- Add enabled plugins
-            for item, enabled in pairs(self.working_enabled[section]) do
-                if enabled == true and item:match("^plugin_") then
-                    table.insert(filtered_items, item:sub(8))
-                    total_available = total_available + 1
-                    total_enabled = total_enabled + 1
-                end
-            end
-            
-            enabled_structure[section] = filtered_items
-        end
-    end
-    
-    local success, err = self:saveMenuOrderFile(filename, enabled_structure)
-    
-    if success then
-        local disabled_count = total_available - total_enabled
-        local message = disabled_count > 0 and 
-            string.format(_("Configuration saved!\n\nEnabled: %d items\nDisabled: %d items\n\nRestart KOReader to see changes."), 
-                         total_enabled, disabled_count) or
-            _("All menu items enabled!\n\nRestart KOReader to see changes.")
-            
-        UIManager:show(ConfirmBox:new{
-            text = message,
-            ok_text = _("OK"),
-        })
-    else
+function MenuDisabler:safeExecute(func)
+    local status, err = xpcall(func, debug.traceback)
+    if not status then
+        logger.err("MenuDisabler Safety Catch: " .. tostring(err))
         UIManager:show(InfoMessage:new{
-            text = _("Error saving changes: ") .. (err or _("Unknown error")),
+            text = _("Plugin Error (Crash Prevented):\n") .. tostring(err):match("^(.-)\n"),
             timeout = 5,
         })
     end
 end
 
--- Reset all items (enable everything)
-function MenuDisabler:resetAllItems(menu_type, filename)
-    UIManager:show(ConfirmBox:new{
-        text = _("Enable all menu items?\n\nThis will restore the default menu layout."),
-        ok_text = _("Enable All"),
-        cancel_text = _("Cancel"),
-        ok_callback = function()
-            local filepath = self.settings_path .. "/" .. filename
-            if lfs.attributes(filepath, "mode") == "file" then
-                os.remove(filepath)
-            end
-            
-            UIManager:show(InfoMessage:new{
-                text = _("All menu items enabled!\n\nRestart KOReader to see changes."),
-                timeout = 3,
-            })
-        end,
-    })
+function MenuDisabler:init()
+    self.ui.menu:registerToMainMenu(self)
 end
 
--- Updated addToMainMenu method with new copy button
 function MenuDisabler:addToMainMenu(menu_items)
+    local is_doc_open = self.ui.document ~= nil
+
     menu_items.menu_disabler = {
         text = _("Menu Disabler"),
         sub_item_table = {
             {
-                text = _("Customize File Manager Menus (When you are on the file browser)"),
+                text = _("Customize File Manager Menus"),
+                callback = function() self:safeExecute(function() self:initSession("filemanager") end) end,
+            },
+            {
+                text = is_doc_open and _("Customize Reader Menus (Close book first)") or _("Customize Reader Menus"),
+                enabled = not is_doc_open,
                 callback = function()
-                    self:showMenuDisabler("filemanager")
+                    self:safeExecute(function()
+                        if is_doc_open then
+                            UIManager:show(InfoMessage:new{
+                                text = _("To prevent instability, please close the current book before editing Reader menus."),
+                                timeout = 4
+                            })
+                        else
+                            self:initSession("reader")
+                        end
+                    end)
                 end
             },
             {
-                text = _("Customize Reader Menus (When you are inside a document)"),
-                callback = function()
-                    self:showMenuDisabler("reader")
-                end
+                text = is_doc_open and _("Profiles (Save/Load/Delete) (Close book first)") or _("Profiles (Save/Load/Delete)"),
+                enabled = not is_doc_open,
+                sub_item_table_func = function()
+                    local items = {}
+                    self:safeExecute(function() items = self:getProfilesMenu() end)
+                    return items
+                end,
+                separator = true,
             },
             {
-                text = _("Copy File-Manager settings to Reader"),
-                callback = function()
-                    self:copyFileManagerToReader()
-                end
+                text = _("Apply File Manager Layout to Reader"),
+                callback = function() self:safeExecute(function() self:copySettings() end) end
             },
             {
-                text = _("Reset everything to default"),
-                callback = function()
-                    UIManager:show(ConfirmBox:new{
-                        text = _("This will enable all menu items by restoring default layouts.\n\nContinue?"),
-                        ok_text = _("Enable All"),
-                        cancel_text = _("Cancel"),
-                        ok_callback = function()
-                            self:enableAllMenus()
-                        end,
-                    })
-                end
+                text = _("Reset All Menus to Default"),
+                callback = function() self:safeExecute(function() self:confirmResetEverything() end) end
             }
         }
     }
+end
+
+-- ===== Helper: centralized show/close for dialogs =====
+function MenuDisabler:showDialog(dialog)
+    if self.active_dialog and self.active_dialog ~= dialog then
+        pcall(function() UIManager:close(self.active_dialog) end)
+        self.active_dialog = nil
+    end
+
+    local orig_close = dialog.close_callback
+    dialog.close_callback = function(...)
+        if type(orig_close) == "function" then pcall(orig_close, ...) end
+        if self.active_dialog == dialog then self.active_dialog = nil end
+    end
+
+    self.active_dialog = dialog
+    UIManager:show(dialog)
+end
+
+function MenuDisabler:closeDialogIfMatch(dialog)
+    if dialog and self.active_dialog == dialog then
+        UIManager:close(dialog)
+        self.active_dialog = nil
+    end
+end
+
+-- ===== Entry point for editing session =====
+function MenuDisabler:initSession(menu_type)
+    if self.active_dialog then
+        pcall(function() UIManager:close(self.active_dialog) end)
+        self.active_dialog = nil
+    end
+
+    local filename = menu_type .. "_menu_order.lua"
+    self.editing_cache = {
+        type = menu_type,
+        filename = filename,
+        data = self:generateWorkingList(menu_type, filename)
+    }
+    self:showCategoryList()
+end
+
+-- ===== Full-screen Category List =====
+function MenuDisabler:showCategoryList(selected_page)
+    local menu_items = {}
+
+    table.insert(menu_items, {
+        text = _("* SAVE & APPLY ALL CHANGES *"),
+        callback = function(dialog)
+            self:safeExecute(function()
+                self:closeDialogIfMatch(dialog)
+                self:saveChanges()
+            end)
+        end,
+        bold = true,
+    })
+
+    table.insert(menu_items, {
+        text = _("--- Quick Search Menus"),
+        callback = function(dialog)
+            self:safeExecute(function()
+                self:closeDialogIfMatch(dialog)
+                self:openSearchInput()
+            end)
+        end,
+    })
+
+    local sorted_sections = {}
+    for section in pairs(self.editing_cache.data.sections) do
+        table.insert(sorted_sections, section)
+    end
+    table.sort(sorted_sections)
+
+    for _, section in ipairs(sorted_sections) do
+        local total, enabled_count = 0, 0
+        for _, enabled in pairs(self.editing_cache.data.enabled_map[section]) do
+            total = total + 1
+            if enabled then enabled_count = enabled_count + 1 end
+        end
+
+        table.insert(menu_items, {
+            text = "» " .. section:gsub("_", " "):upper() .. string.format(" (%d/%d)", enabled_count, total),
+            callback = function(dialog)
+                self:safeExecute(function()
+                    self:closeDialogIfMatch(dialog)
+                    self:showItemList(section)
+                end)
+            end,
+        })
+    end
+
+    table.insert(menu_items, {
+        text = _("! Reset to Defaults"),
+        callback = function(dialog)
+            self:safeExecute(function()
+                self:closeDialogIfMatch(dialog)
+                self:resetAllItems()
+            end)
+        end,
+        separator = true,
+    })
+
+    local dlg = Menu:new{
+        title = _("Menu Disabler: ") .. self.editing_cache.type:upper(),
+        item_table = menu_items,
+        page = selected_page,
+        width = Device.screen:getWidth(),
+        height = Device.screen:getHeight(),
+    }
+    self:showDialog(dlg)
+end
+
+-- ===== Full-screen Item List =====
+function MenuDisabler:showItemList(section, select_index)
+    local menu_items = {}
+    local items_map = self.editing_cache.data.enabled_map[section]
+
+    table.insert(menu_items, {
+        text = _("SAVE CHANGES"),
+        callback = function(dialog)
+            self:safeExecute(function()
+                self:closeDialogIfMatch(dialog)
+                self:saveChanges()
+            end)
+        end,
+        bold = true,
+    })
+
+    table.insert(menu_items, {
+        text = _("<- Back to Categories"),
+        callback = function(dialog)
+            self:safeExecute(function()
+                self:closeDialogIfMatch(dialog)
+                self:showCategoryList()
+            end)
+        end,
+        separator = true,
+    })
+
+    local items_list = {}
+    for item, enabled in pairs(items_map) do
+        table.insert(items_list, { name = item, enabled = enabled })
+    end
+    table.sort(items_list, function(a,b) return a.name < b.name end)
+
+    for i, item_data in ipairs(items_list) do
+        local item_name = item_data.name
+        local is_enabled = item_data.enabled
+        local display_name = item_name:gsub("_", " ")
+
+        local is_protected = false
+        for _, p in ipairs(protected_items) do
+            if p.section == section and p.item == item_name then is_protected = true break end
+        end
+
+        if not is_protected then
+            local prefix = is_enabled and "[x] " or "[ ] "
+            table.insert(menu_items, {
+                text = prefix .. display_name,
+                callback = function(dialog)
+                    self:safeExecute(function()
+                        self.editing_cache.data.enabled_map[section][item_name] = not self.editing_cache.data.enabled_map[section][item_name]
+                        local next_index = (i + 3)
+                        self:closeDialogIfMatch(dialog)
+                        self:showItemList(section, next_index)
+                    end)
+                end,
+            })
+        else
+            table.insert(menu_items, {
+                text = "[!] " .. display_name .. " (Required)",
+                enabled = false,
+            })
+        end
+    end
+
+    local dlg = Menu:new{
+        title = _("Editing: ") .. section:upper(),
+        item_table = menu_items,
+        select_item = select_index,
+        width = Device.screen:getWidth(),
+        height = Device.screen:getHeight(),
+    }
+    self:showDialog(dlg)
+end
+
+-- ===== Search UI & Logic =====
+function MenuDisabler:openSearchInput()
+    local input
+    input = InputDialog:new{
+        title = _("Search menu items"),
+        input_type = "text",
+        buttons = {{
+            { text = _("Cancel"), callback = function() UIManager:close(input) end },
+            { text = _("Search"), callback = function()
+                local q = input:getInputText()
+                UIManager:close(input)
+                if q and q:match("%S") then
+                    self:safeExecute(function() self:showSearchResults(q) end)
+                else
+                    UIManager:show(InfoMessage:new{text=_("Empty query")})
+                end
+            end }
+        }}
+    }
+    self:showDialog(input)
+    input:onShowKeyboard()
+end
+
+function MenuDisabler:showSearchResults(query)
+    query = query:lower()
+    local results = {}
+
+    for section, items in pairs(self.editing_cache.data.enabled_map) do
+        for item_name, enabled in pairs(items) do
+            local combine = section .. " " .. item_name
+            if combine:lower():find(query, 1, true) then
+                table.insert(results, {
+                    section = section,
+                    item = item_name,
+                    enabled = enabled,
+                })
+            end
+        end
+    end
+
+    if #results == 0 then
+        UIManager:show(InfoMessage:new{text = _("No matches")})
+        return
+    end
+
+    local menu_items = {}
+    for _, r in ipairs(results) do
+        local disp = string.format("%s / %s %s", r.section, r.item:gsub("_"," "), r.enabled and "(on)" or "(off)")
+        table.insert(menu_items, {
+            text = disp,
+            callback = function(dialog)
+                self:safeExecute(function()
+                    self:closeDialogIfMatch(dialog)
+                    local idx = nil
+                    local map = self.editing_cache.data.enabled_map[r.section]
+                    local list = {}
+                    for nm, st in pairs(map) do table.insert(list, nm) end
+                    table.sort(list)
+                    for i, nm in ipairs(list) do
+                        if nm == r.item then idx = i; break end
+                    end
+                    self:showItemList(r.section, (idx and idx+3) or 1)
+                end)
+            end
+        })
+    end
+
+    local dlg = Menu:new{
+        title = _("Search results for: ") .. query,
+        item_table = menu_items,
+        width = Device.screen:getWidth(),
+        height = Device.screen:getHeight(),
+    }
+    self:showDialog(dlg)
+end
+
+-- ===== Backend =====
+function MenuDisabler:generateWorkingList(menu_type, filename)
+    local system_struct = self:getSystemDefaultStructure(menu_type)
+    local user_struct = self:getUserCustomStructure(filename) or {}
+    local plugins = self:getAvailablePlugins()
+
+    local enabled_map = {}
+    local sections = {}
+
+    for section, items in pairs(system_struct) do
+        if type(items) == "table" then
+            if not section:match("^KOMenu:") then
+                sections[section] = true
+                enabled_map[section] = {}
+                for _, item in ipairs(items) do
+                    if item ~= "----------------------------" then
+                        enabled_map[section][item] = true
+                    end
+                end
+            end
+        end
+    end
+
+    if not enabled_map.more_tools then enabled_map.more_tools = {} end
+    for p_name, _ in pairs(plugins) do
+        local found = false
+        for section, items in pairs(enabled_map) do
+            if items[p_name] ~= nil then found = true break end
+        end
+        if not found then enabled_map.more_tools[p_name] = true end
+    end
+
+    if user_struct["KOMenu:disabled"] then
+        for _, disabled_item in ipairs(user_struct["KOMenu:disabled"]) do
+            for section, items in pairs(enabled_map) do
+                if items[disabled_item] ~= nil then
+                    enabled_map[section][disabled_item] = false
+                end
+            end
+        end
+    end
+
+    for _, p in ipairs(protected_items) do
+        if enabled_map[p.section] then
+            enabled_map[p.section][p.item] = true
+        end
+    end
+
+    return { enabled_map = enabled_map, sections = sections }
+end
+
+function MenuDisabler:getSystemDefaultStructure(menu_type)
+    local filename = (menu_type == "filemanager") and "filemanager_menu_order.lua" or "reader_menu_order.lua"
+    local paths = { "frontend/ui/elements/" .. filename, "ui/elements/" .. filename, "common/ui/elements/" .. filename }
+    for _, path in ipairs(paths) do
+        if lfs.attributes(path, "mode") == "file" then
+            local chunk = loadfile(path)
+            if chunk then
+                local ok, res = pcall(chunk)
+                if ok and type(res) == "table" then return util.tableDeepCopy(res) end
+            end
+        end
+    end
+    local req_path = "ui/elements/" .. (menu_type == "filemanager" and "filemanager_menu_order" or "reader_menu_order")
+    local ok, res = pcall(require, req_path)
+    if ok and type(res) == "table" then return util.tableDeepCopy(res) end
+    return {}
+end
+
+function MenuDisabler:getUserCustomStructure(filename)
+    local filepath = self.settings_path .. "/" .. filename
+    if lfs.attributes(filepath, "mode") == "file" then
+        local chunk = loadfile(filepath)
+        if chunk then
+            local ok, res = pcall(chunk)
+            if ok and type(res) == "table" then return res end
+        end
+    end
+    return nil
+end
+
+function MenuDisabler:getAvailablePlugins()
+    local plugins = {}
+    local base = self.settings_path:gsub("settings/?$", "")
+    local paths = { base .. "plugins", base .. "plugins/patch" }
+    for _, path in ipairs(paths) do
+        if lfs.attributes(path, "mode") == "directory" then
+            for file in lfs.dir(path) do
+                if file ~= "." and file ~= ".." then
+                    local main_file = path .. "/" .. file .. "/main.lua"
+                    if lfs.attributes(main_file, "mode") == "file" then
+                        local f = io.open(main_file, "r")
+                        if f then
+                            local c = f:read("*all"); f:close()
+                            local name = c:match("menu_items%.([%w_]+)%s*=")
+                            if name then plugins[name] = file end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return plugins
+end
+
+-- ===== Profiles system=====
+function MenuDisabler:getProfilesMenu()
+    local menu_items = {}
+
+    table.insert(menu_items, {
+        text = _("[+] Save Current Setup as New Profile"),
+        callback = function(dialog) self:safeExecute(function() self:closeDialogIfMatch(dialog); self:promptCreateProfile() end) end,
+        bold = true,
+        separator = true,
+    })
+
+    local profiles = self:loadProfilesFromDisk()
+    local sorted_names = {}
+    for name, _ in pairs(profiles) do table.insert(sorted_names, name) end
+    table.sort(sorted_names)
+
+    if #sorted_names > 0 then
+        table.insert(menu_items, { text = _("--- Load Profile ---"), enabled = false })
+        for _, name in ipairs(sorted_names) do
+            table.insert(menu_items, {
+                text = " > " .. name,
+                callback = function(dialog) self:safeExecute(function() self:closeDialogIfMatch(dialog); self:applyProfile(name, profiles[name]) end) end,
+            })
+        end
+
+        table.insert(menu_items, { text = _("--- Manage ---"), enabled = false })
+        table.insert(menu_items, {
+            text = _("Delete a Profile"),
+            sub_item_table_func = function()
+                local del_items = {}
+                for _, name in ipairs(sorted_names) do
+                    table.insert(del_items, {
+                        text = "[x] " .. name,
+                        callback = function(dialog) self:safeExecute(function() self:closeDialogIfMatch(dialog); self:deleteProfile(name) end) end
+                    })
+                end
+                return del_items
+            end
+        })
+    else
+        table.insert(menu_items, { text = _("(No saved profiles yet)"), enabled = false })
+    end
     return menu_items
 end
 
--- New method to copy file manager configuration to reader
-function MenuDisabler:copyFileManagerToReader()
+function MenuDisabler:loadProfilesFromDisk()
+    local path = self.settings_path .. "/" .. self.profiles_file
+    if lfs.attributes(path, "mode") == "file" then
+        local chunk = loadfile(path)
+        if chunk then
+            local ok, res = pcall(chunk)
+            if ok and type(res) == "table" then return res end
+        end
+    end
+    return {}
+end
+
+function MenuDisabler:saveProfilesToDisk(profiles)
+    local f = io.open(self.settings_path .. "/" .. self.profiles_file, "w")
+    if not f then return false end
+    f:write("return {\n")
+    for name, data in pairs(profiles) do
+        f:write(string.format("    [%q] = {\n", name))
+        if data.fm then f:write(string.format("        fm = %q,\n", data.fm)) end
+        if data.reader then f:write(string.format("        reader = %q,\n", data.reader)) end
+        f:write("    },\n")
+    end
+    f:write("}\n")
+    f:close()
+    return true
+end
+
+function MenuDisabler:promptCreateProfile()
+    local fm = self:getUserCustomStructure("filemanager_menu_order.lua")
+    local rd = self:getUserCustomStructure("reader_menu_order.lua")
+    if not fm and not rd then UIManager:show(InfoMessage:new{text=_("No settings to save!")}) return end
+
+    local input
+    input = InputDialog:new{
+        title = _("Name this Profile"),
+        input_type = "text",
+        buttons = {{
+            { text = _("Cancel"), callback = function() UIManager:close(input) end },
+            { text = _("Save"), callback = function()
+                local name = input:getInputText()
+                if name and name ~= "" then
+                    UIManager:close(input)
+                    self:safeExecute(function()
+                        local f1 = io.open(self.settings_path.."/filemanager_menu_order.lua", "r")
+                        local c1 = f1 and f1:read("*all"); if f1 then f1:close() end
+                        local f2 = io.open(self.settings_path.."/reader_menu_order.lua", "r")
+                        local c2 = f2 and f2:read("*all"); if f2 then f2:close() end
+
+                        local profiles = self:loadProfilesFromDisk()
+                        profiles[name] = { fm = c1, reader = c2 }
+                        self:saveProfilesToDisk(profiles)
+                        UIManager:show(InfoMessage:new{text=_("Saved: ")..name})
+                    end)
+                end
+            end }
+        }}
+    }
+    self:showDialog(input)
+    input:onShowKeyboard()
+end
+
+function MenuDisabler:applyProfile(name, data)
     UIManager:show(ConfirmBox:new{
-        text = _("This will copy your File Manager menu configuration to the Reader menus.\n\nWARNING: This will override your current Reader menu settings!\n\nContinue?"),
-        ok_text = _("Copy Settings"),
+        text = _("Load profile '") .. name .. _("'?"),
+        ok_text = _("Load"),
         cancel_text = _("Cancel"),
         ok_callback = function()
-            self:performCopyFileManagerToReader()
-        end,
+            self:safeExecute(function()
+                local f1 = self.settings_path.."/filemanager_menu_order.lua"
+                if data.fm then local f=io.open(f1,"w"); f:write(data.fm); f:close() else os.remove(f1) end
+                local f2 = self.settings_path.."/reader_menu_order.lua"
+                if data.reader then local f=io.open(f2,"w"); f:write(data.reader); f:close() else os.remove(f2) end
+                self:safeRestart()
+            end)
+        end
     })
 end
 
--- New method to perform the actual copying
-function MenuDisabler:performCopyFileManagerToReader()
-    local fm_filename = "filemanager_menu_order.lua"
-    local reader_filename = "reader_menu_order.lua"
-    
-    -- Read the file manager configuration
-    local fm_config = self:readMenuOrderFile(fm_filename)
-    
-    if not fm_config then
-        UIManager:show(InfoMessage:new{
-            text = _("No File Manager configuration found.\nPlease customize File Manager menus first."),
-            timeout = 4,
-        })
-        return
+function MenuDisabler:deleteProfile(name)
+    UIManager:show(ConfirmBox:new{
+        text = _("Delete profile '") .. name .. _("'?"),
+        ok_text = _("Delete"),
+        cancel_text = _("Cancel"),
+        ok_callback = function()
+            self:safeExecute(function()
+                local profiles = self:loadProfilesFromDisk()
+                profiles[name] = nil
+                self:saveProfilesToDisk(profiles)
+                UIManager:show(InfoMessage:new{text=_("Deleted")})
+            end)
+        end
+    })
+end
+
+-- ===== Saving & actions =====
+function MenuDisabler:saveChanges()
+    if not self.editing_cache then return end
+    local menu_type = self.editing_cache.type
+    local filename = self.editing_cache.filename
+    local system_struct = self:getSystemDefaultStructure(menu_type)
+    local enabled_map = self.editing_cache.data.enabled_map
+
+    local disabled_list = {}
+    local output_table = {}
+
+    for key, val in pairs(system_struct) do
+        if key:match("^KOMenu:") and key ~= "KOMenu:disabled" then
+            output_table[key] = util.tableDeepCopy(val)
+        end
     end
-    
-    -- Save the file manager configuration as reader configuration
-    local fm_filepath = self.settings_path .. "/" .. fm_filename
-    local reader_filepath = self.settings_path .. "/" .. reader_filename
-    
-    -- Simple file copy approach
-    local success = false
-    local fm_file = io.open(fm_filepath, "r")
-    if fm_file then
-        local content = fm_file:read("*all")
-        fm_file:close()
-        
-        local reader_file = io.open(reader_filepath, "w")
-        if reader_file then
-            reader_file:write(content)
-            reader_file:close()
-            success = true
+
+    for section, items in pairs(system_struct) do
+        if not section:match("^KOMenu:") then
+            output_table[section] = {}
+            for _, item in ipairs(items) do
+                if item == "----------------------------" then
+                    table.insert(output_table[section], item)
+                else
+                    if enabled_map[section] and enabled_map[section][item] then
+                        table.insert(output_table[section], item)
+                    else
+                        table.insert(disabled_list, item)
+                    end
+                end
+            end
+        end
+    end
+
+    for section, items_map in pairs(enabled_map) do
+        if not output_table[section] then output_table[section] = {} end
+        for item_name, enabled in pairs(items_map) do
+            local exists = false
+            for _, v in ipairs(output_table[section]) do if v == item_name then exists = true break end end
+            if not exists then
+                if enabled then table.insert(output_table[section], item_name)
+                else
+                    local is_dis = false
+                    for _, d in ipairs(disabled_list) do if d == item_name then is_dis = true break end end
+                    if not is_dis then table.insert(disabled_list, item_name) end
+                end
+            end
+        end
+    end
+
+    output_table["KOMenu:disabled"] = disabled_list
+
+    local f = io.open(self.settings_path .. "/" .. filename, "w")
+    if not f then UIManager:show(InfoMessage:new{text=_("Error writing file")}) return end
+
+    f:write("return {\n")
+    for key, val in pairs(output_table) do
+        if key:match("^KOMenu:") then
+            f:write("    [\"" .. key .. "\"] = {\n")
+            for _, v in ipairs(val) do f:write("        \"" .. v .. "\",\n") end
+            f:write("    },\n")
         end
     end
     
-    if success then
-        UIManager:show(InfoMessage:new{
-            text = _("File Manager settings copied to Reader successfully!\n\nRestart KOReader to see changes."),
-            timeout = 4,
-        })
-    else
-        UIManager:show(InfoMessage:new{
-            text = _("Error copying settings. Please try again."),
-            timeout = 3,
-        })
+    -- RESTORED: Write the section lists. This is required for customization to work.
+    -- To avoid "NEW" labels, we rely on the logic above to ensure all known items
+    -- are included in the lists. "NEW" labels on core items were mainly caused
+    -- by the corrupt 'copySettings' function, which this update also fixes below.
+    for key, val in pairs(output_table) do
+        if not key:match("^KOMenu:") then
+            f:write("    [\"" .. key .. "\"] = {\n")
+            for _, v in ipairs(val) do f:write("        \"" .. v .. "\",\n") end
+            f:write("    },\n")
+        end
     end
+
+    f:write("}\n")
+    f:close()
+
+    self:safeRestart()
 end
 
--- Enable all menus by deleting override files
-function MenuDisabler:enableAllMenus()
-    local files = {"filemanager_menu_order.lua", "reader_menu_order.lua"}
-    local deleted_count = 0
+function MenuDisabler:resetAllItems()
+    if not self.editing_cache then return end
+    os.remove(self.settings_path .. "/" .. self.editing_cache.filename)
+    self.editing_cache = nil
+    self:safeRestart()
+end
+
+function MenuDisabler:confirmResetEverything()
+    UIManager:show(ConfirmBox:new{
+        text = _("Reset ALL menus to default?"),
+        ok_text = _("Reset"),
+        cancel_text = _("Cancel"),
+        ok_callback = function()
+            self:safeExecute(function()
+                local fm_file = self.settings_path .. "/filemanager_menu_order.lua"
+                local reader_file = self.settings_path .. "/reader_menu_order.lua"
+                if lfs.attributes(fm_file, "mode") == "file" then os.remove(fm_file) end
+                if lfs.attributes(reader_file, "mode") == "file" then os.remove(reader_file) end
+                self:safeRestart()
+            end)
+        end
+    })
+end
+
+function MenuDisabler:copySettings()
+    -- FIX: Intelligent copy that maps disabled items without breaking structure.
+    -- This prevents the "NEW" label bug caused by overwriting the Reader config with FM structure.
     
-    for _, filename in ipairs(files) do
-        local filepath = self.settings_path .. "/" .. filename
-        if lfs.attributes(filepath, "mode") == "file" then
-            local success = os.remove(filepath)
-            if success then
-                deleted_count = deleted_count + 1
+    -- 1. Get the DISABLED items from the user's File Manager settings
+    local fm_custom = self:getUserCustomStructure("filemanager_menu_order.lua")
+    if not fm_custom or not fm_custom["KOMenu:disabled"] then
+        UIManager:show(InfoMessage:new{text=_("No disabled items in File Manager to copy.")}) 
+        return 
+    end
+    local disabled_items = fm_custom["KOMenu:disabled"]
+    local disabled_lookup = {}
+    for _, item in ipairs(disabled_items) do disabled_lookup[item] = true end
+
+    -- 2. Load the valid Reader structure from defaults
+    local reader_def = self:getSystemDefaultStructure("reader")
+    if not reader_def or next(reader_def) == nil then
+        UIManager:show(InfoMessage:new{text=_("Error: Could not load Reader defaults.")})
+        return
+    end
+
+    -- 3. Apply the disabled status to the Reader structure
+    local output_table = {}
+    local final_disabled_list = {}
+
+    -- Copy over any existing disabled items from reader defaults if any
+    if reader_def["KOMenu:disabled"] then
+        for _, item in ipairs(reader_def["KOMenu:disabled"]) do
+            table.insert(final_disabled_list, item)
+        end
+    end
+
+    -- Process sections: if item is disabled in FM, move it to disabled list in Reader
+    for section, items in pairs(reader_def) do
+        if type(items) == "table" and not section:match("^KOMenu:") then
+            output_table[section] = {}
+            for _, item in ipairs(items) do
+                if item == "----------------------------" then
+                    table.insert(output_table[section], item)
+                else
+                    if disabled_lookup[item] then
+                        -- Disable it
+                        table.insert(final_disabled_list, item)
+                    else
+                        -- Keep it active
+                        table.insert(output_table[section], item)
+                    end
+                end
             end
         end
     end
     
-    local message = deleted_count > 0 and
-        _("All menu items enabled!\n\nRestart KOReader to see changes.") or
-        _("No custom menu files found.\nMenus should already be at defaults.")
+    output_table["KOMenu:disabled"] = final_disabled_list
     
-    UIManager:show(InfoMessage:new{
-        text = message,
-        timeout = 3,
+    -- Preserve KOMenu:menu_buttons if present in defaults
+    if reader_def["KOMenu:menu_buttons"] then
+        output_table["KOMenu:menu_buttons"] = util.tableDeepCopy(reader_def["KOMenu:menu_buttons"])
+    end
+
+    -- 4. Write the clean Reader file
+    local dst_path = self.settings_path .. "/reader_menu_order.lua"
+    local f = io.open(dst_path, "w")
+    if not f then 
+        UIManager:show(InfoMessage:new{text=_("Error writing file")}) 
+        return 
+    end
+
+    f:write("return {\n")
+    for key, val in pairs(output_table) do
+        if key:match("^KOMenu:") then
+            f:write("    [\"" .. key .. "\"] = {\n")
+            for _, v in ipairs(val) do f:write("        \"" .. v .. "\",\n") end
+            f:write("    },\n")
+        end
+    end
+    for key, val in pairs(output_table) do
+        if not key:match("^KOMenu:") then
+            f:write("    [\"" .. key .. "\"] = {\n")
+            for _, v in ipairs(val) do f:write("        \"" .. v .. "\",\n") end
+            f:write("    },\n")
+        end
+    end
+    f:write("}\n")
+    f:close()
+
+    self:safeRestart()
+end
+
+function MenuDisabler:safeRestart()
+    UIManager:show(ConfirmBox:new{
+        text = _("Settings saved!\n\nPlease restart KOReader manually."),
+        ok_text = _("OK"),
     })
 end
+
 return MenuDisabler
