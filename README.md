@@ -4,7 +4,7 @@
 KOReader’s interface can feel cluttered or overwhelming, especially for new users. This plugin lets you customize the menu system by hiding any menu items you don’t need, helping you streamline your reading experience and focus on what matters most.
 
 ![Menu Disabler Plugin Preview](https://github.com/user-attachments/assets/60db671c-e300-4b01-a230-5cc40e697f2a)
-![Menu Disabler Plugin Layout](<img width="1920" height="616" alt="image" src="https://github.com/user-attachments/assets/b49946df-d7df-4020-ba3a-51ba979618d4" />)
+![Menu Disabler Plugin Layout](https://github.com/user-attachments/assets/b49946df-d7df-4020-ba3a-51ba979618d4)
 
 
 ## Installation
