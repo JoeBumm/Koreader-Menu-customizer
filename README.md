@@ -1,7 +1,7 @@
 # Menu Disabler Plugin for KOReader
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/JoeBumm/Koreader-Menu-customizer?style=for-the-badge&color=orange) 
-![GitHub all releases](https://img.shields.io/github/downloads/JoeBumm/Koreader-Menu-customizer/total?style=for-the-badge&color=yellow) 
-![Platform](https://img.shields.io/badge/Platform-KOReader-success?style=for-the-badge&logo=koreader)
+![GitHub all releases](https://img.shields.io/github/downloads/JoeBumm/Koreader-Menu-customizer/total?style=for-the-badge&color=red) ![Platform](https://img.shields.io/badge/Platform-KOReader-success?style=for-the-badge&logo=koreader)
+
 ## Overview
 KOReader’s interface can feel cluttered or overwhelming, especially for new users. This plugin lets you customize the menu system by hiding any menu items you don’t need, helping you streamline your reading experience and focus on what matters most. 
 
