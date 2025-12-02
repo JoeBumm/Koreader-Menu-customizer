@@ -394,15 +394,7 @@ function MenuDisabler:generateWorkingList(menu_type, filename)
         end
     end
 
-    if not enabled_map.more_tools then enabled_map.more_tools = {} end
-    for p_name, _ in pairs(plugins) do
-        local found = false
-        for section, items in pairs(enabled_map) do
-            if items[p_name] ~= nil then found = true break end
-        end
-        if not found then enabled_map.more_tools[p_name] = true end
-    end
-
+    
     if user_struct["KOMenu:disabled"] then
         for _, disabled_item in ipairs(user_struct["KOMenu:disabled"]) do
             for section, items in pairs(enabled_map) do
@@ -679,10 +671,7 @@ function MenuDisabler:saveChanges()
         end
     end
     
-    -- RESTORED: Write the section lists. This is required for customization to work.
-    -- To avoid "NEW" labels, we rely on the logic above to ensure all known items
-    -- are included in the lists. "NEW" labels on core items were mainly caused
-    -- by the corrupt 'copySettings' function, which this update also fixes below.
+    
     for key, val in pairs(output_table) do
         if not key:match("^KOMenu:") then
             f:write("    [\"" .. key .. "\"] = {\n")
@@ -722,10 +711,9 @@ function MenuDisabler:confirmResetEverything()
 end
 
 function MenuDisabler:copySettings()
-    -- FIX: Intelligent copy that maps disabled items without breaking structure.
     -- This prevents the "NEW" label bug caused by overwriting the Reader config with FM structure.
     
-    -- 1. Get the DISABLED items from the user's File Manager settings
+items from the user's File Manager settings
     local fm_custom = self:getUserCustomStructure("filemanager_menu_order.lua")
     if not fm_custom or not fm_custom["KOMenu:disabled"] then
         UIManager:show(InfoMessage:new{text=_("No disabled items in File Manager to copy.")}) 
@@ -735,25 +723,21 @@ function MenuDisabler:copySettings()
     local disabled_lookup = {}
     for _, item in ipairs(disabled_items) do disabled_lookup[item] = true end
 
-    -- 2. Load the valid Reader structure from defaults
     local reader_def = self:getSystemDefaultStructure("reader")
     if not reader_def or next(reader_def) == nil then
         UIManager:show(InfoMessage:new{text=_("Error: Could not load Reader defaults.")})
         return
     end
 
-    -- 3. Apply the disabled status to the Reader structure
     local output_table = {}
     local final_disabled_list = {}
 
-    -- Copy over any existing disabled items from reader defaults if any
     if reader_def["KOMenu:disabled"] then
         for _, item in ipairs(reader_def["KOMenu:disabled"]) do
             table.insert(final_disabled_list, item)
         end
     end
 
-    -- Process sections: if item is disabled in FM, move it to disabled list in Reader
     for section, items in pairs(reader_def) do
         if type(items) == "table" and not section:match("^KOMenu:") then
             output_table[section] = {}
@@ -775,12 +759,10 @@ function MenuDisabler:copySettings()
     
     output_table["KOMenu:disabled"] = final_disabled_list
     
-    -- Preserve KOMenu:menu_buttons if present in defaults
     if reader_def["KOMenu:menu_buttons"] then
         output_table["KOMenu:menu_buttons"] = util.tableDeepCopy(reader_def["KOMenu:menu_buttons"])
     end
 
-    -- 4. Write the clean Reader file
     local dst_path = self.settings_path .. "/reader_menu_order.lua"
     local f = io.open(dst_path, "w")
     if not f then 
@@ -815,5 +797,4 @@ function MenuDisabler:safeRestart()
         ok_text = _("OK"),
     })
 end
-
 return MenuDisabler
