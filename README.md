@@ -7,7 +7,7 @@
 ## "Where did all the buttons go?" — You, hopefully.
 
 KOReader is amazing. Its menus? They have more buttons than a spaceship cockpit. 
-This plugin lets you perform a controlled demolition on your menus, hiding the clutter so you can actually, you know, *read*.
+This plugin lets you perform a controlled demolition on your menus, hiding the clutter so you can actually, *read*.
 
 ![Menu Disabler Plugin Preview](https://github.com/user-attachments/assets/60db671c-e300-4b01-a230-5cc40e697f2a)
 
@@ -26,7 +26,7 @@ This plugin lets you perform a controlled demolition on your menus, hiding the c
 ## How to Use
 1.  Go to **More tools → Menu Disabler**.
 2.  Pick a mode (File Manager or Reader).
-3.  **Tap to hide/show items.** Green means visible. Red means "gone to the shadow realm."
+3.  **Tap to hide/show items.** X means visible. [] means "gone to the shadow realm."
 4.  **SCROLL DOWN AND HIT SAVE.** If you don't save, it didn't happen.
 
 ## Help! I Broke It!
