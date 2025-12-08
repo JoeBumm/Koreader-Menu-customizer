@@ -46,18 +46,10 @@ return function(MenuDisabler)
                 end,
             })
         end
-    
-        table.insert(menu_items, {
-            text = _("! Reset to Defaults"),
-            callback = function(dialog)
-                self:closeDialogIfMatch(dialog)
-                self:resetAllItems()
-            end,
-            separator = true,
-        })
-    
+        
+        local title_text = self.editing_cache.type == "filemanager" and _("Filemanager Settings") or _("Reader Settings")
         local dlg = Menu:new{
-            title = _("Menu Disabler: ") .. self.editing_cache.type:upper(),
+            title = title_text,
             item_table = menu_items,
             page = selected_page,
             width = Device.screen:getWidth(),
