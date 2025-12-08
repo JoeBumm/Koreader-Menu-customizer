@@ -7,7 +7,7 @@
 ## "Where did all the buttons go?" — You, hopefully.
 
 KOReader is amazing. Its menus? They have more buttons than a spaceship cockpit. 
-This plugin lets you perform a controlled demolition on your menus, hiding the clutter so you can actually, *read*.
+This plugin lets you hide the clutter so you can actually, *read*.
 
 ![Menu Disabler Plugin Preview](https://github.com/user-attachments/assets/60db671c-e300-4b01-a230-5cc40e697f2a)
 
