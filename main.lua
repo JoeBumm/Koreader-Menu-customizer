@@ -23,7 +23,6 @@ local function load_module(name)
 end
 
 load_module("constants")(MenuDisabler)
--- ui_helper removed
 load_module("backend")(MenuDisabler)
 load_module("profiles")(MenuDisabler)
 load_module("search")(MenuDisabler)

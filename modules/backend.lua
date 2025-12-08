@@ -192,13 +192,16 @@ return function(MenuDisabler)
             ok_text = _("Reset"),
             cancel_text = _("Cancel"),
             ok_callback = function()
-                self:safeExecute(function()
+                local ok, err = pcall(function()
                     local fm_file = self.settings_path .. "/filemanager_menu_order.lua"
                     local reader_file = self.settings_path .. "/reader_menu_order.lua"
                     if lfs.attributes(fm_file, "mode") == "file" then os.remove(fm_file) end
                     if lfs.attributes(reader_file, "mode") == "file" then os.remove(reader_file) end
                     self:safeRestart()
                 end)
+                if not ok then
+                    UIManager:show(InfoMessage:new{text = _("Error resetting: ") .. tostring(err)})
+                end
             end
         })
     end
