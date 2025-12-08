@@ -93,6 +93,43 @@ return function(MenuDisabler)
             table.insert(items_list, { name = item, enabled = enabled })
         end
         table.sort(items_list, function(a,b) return a.name < b.name end)
+
+    -- Batch Actions: Toggle All
+    local all_active = true
+    local any_toggleable = false
+    for _, item in ipairs(items_list) do
+        local is_protected = false
+        for _, p in ipairs(self.protected_items) do
+            if p.section == section and p.item == item.name then is_protected = true break end
+        end
+        if not is_protected then
+            any_toggleable = true
+            if not item.enabled then all_active = false end
+        end
+    end
+
+    if any_toggleable then
+        local prefix = all_active and "[x] " or "[ ] "
+        table.insert(menu_items, {
+            text = prefix .. _("Toggle All Items"),
+            bold = true,
+            callback = function(dialog)
+                local target = not all_active
+                for _, item in ipairs(items_list) do
+                    local is_protected = false
+                    for _, p in ipairs(self.protected_items) do
+                        if p.section == section and p.item == item.name then is_protected = true break end
+                    end
+                    if not is_protected then
+                        self.editing_cache.data.enabled_map[section][item.name] = target
+                    end
+                end
+                self:closeDialogIfMatch(dialog)
+                self:showItemList(section)
+            end,
+            separator = true,
+        })
+    end
     
         for i, item_data in ipairs(items_list) do
             local item_name = item_data.name

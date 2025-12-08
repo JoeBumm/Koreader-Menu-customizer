@@ -8,13 +8,7 @@ return function(MenuDisabler)
     function MenuDisabler:showVisualEditor(active_tab_index)
         -- 1. Get the structure of tabs (sections) from the system configuration
         local system_struct = self.editing_cache.data.sections
-        -- System struct in backend.lua is just a flat map of sections. 
-        -- We need the ORDERED list of high-level buttons: 'KOMenu:menu_buttons'.
-        
-        -- To access 'KOMenu:menu_buttons', we need to look at the raw config generation.
-        -- backend.lua's generateWorkingList doesn't return 'KOMenu:menu_buttons' in sections list.
-        -- We need to fetch it.
-        
+
         local menu_type = self.editing_cache.type
         local system_default = self:getSystemDefaultStructure(menu_type)
         local root_buttons = system_default["KOMenu:menu_buttons"]
