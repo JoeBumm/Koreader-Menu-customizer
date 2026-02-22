@@ -120,6 +120,15 @@ return function(MenuDisabler)
                 if data.fm then local f=io.open(f1,"w"); f:write(data.fm); f:close() else os.remove(f1) end
                 local f2 = self.settings_path.."/reader_menu_order.lua"
                 if data.reader then local f=io.open(f2,"w"); f:write(data.reader); f:close() else os.remove(f2) end
+                -- Re-merge discovered plugin/patch items into the restored profile files
+                if data.fm then
+                    local working = self:generateWorkingList("filemanager", "filemanager_menu_order.lua")
+                    self:writeOrderFile("filemanager", "filemanager_menu_order.lua", working.enabled_map)
+                end
+                if data.reader then
+                    local working = self:generateWorkingList("reader", "reader_menu_order.lua")
+                    self:writeOrderFile("reader", "reader_menu_order.lua", working.enabled_map)
+                end
                 self:safeRestart()
             end
         })

@@ -15,6 +15,8 @@ return function(MenuDisabler)
         local enabled_map = {}
         local sections = {}
     
+        -- Step 1: Build enabled_map from system defaults
+        local system_items = {}
         for section, items in pairs(system_struct) do
             if type(items) == "table" then
                 if not section:match("^KOMenu:") then
@@ -23,12 +25,67 @@ return function(MenuDisabler)
                     for _, item in ipairs(items) do
                         if item ~= "----------------------------" then
                             enabled_map[section][item] = true
+                            system_items[item] = true
                         end
                     end
                 end
             end
         end
     
+        -- Step 2A: Import items from user's existing config that aren't in system defaults
+        -- (preserves plugin items from a previous save)
+        for section, items in pairs(user_struct) do
+            if type(items) == "table" and not section:match("^KOMenu:") then
+                if not enabled_map[section] then
+                    enabled_map[section] = {}
+                    sections[section] = true
+                end
+                for _, item in ipairs(items) do
+                    if item ~= "----------------------------" and not system_items[item] then
+                        if enabled_map[section][item] == nil then
+                            enabled_map[section][item] = true
+                        end
+                    end
+                end
+            end
+        end
+    
+        -- Step 2B: Import discovered plugin items not yet in any section
+        for name, info in pairs(plugins) do
+            local already_present = false
+            local found_in_section = nil
+            for sec, items_map in pairs(enabled_map) do
+                if items_map[name] ~= nil then
+                    already_present = true
+                    found_in_section = sec
+                    break
+                end
+            end
+            if not already_present then
+                local target = "more_tools"
+                if info.sorting_hint and sections[info.sorting_hint] then
+                    target = info.sorting_hint
+                end
+                if not enabled_map[target] then
+                    enabled_map[target] = {}
+                    sections[target] = true
+                end
+                enabled_map[target][name] = true
+            else
+                -- Relocate items stuck in more_tools if we now know a better section
+                if found_in_section == "more_tools" and info.sorting_hint and info.sorting_hint ~= "more_tools" and sections[info.sorting_hint] then
+                    local was_enabled = enabled_map[found_in_section][name]
+                    enabled_map[found_in_section][name] = nil
+                    if not enabled_map[info.sorting_hint] then
+                        enabled_map[info.sorting_hint] = {}
+                        sections[info.sorting_hint] = true
+                    end
+                    enabled_map[info.sorting_hint][name] = was_enabled
+                end
+            end
+        end
+    
+        -- Step 3: Apply disabled list from user config
         if user_struct["KOMenu:disabled"] then
             for _, disabled_item in ipairs(user_struct["KOMenu:disabled"]) do
                 for section, items in pairs(enabled_map) do
@@ -39,6 +96,7 @@ return function(MenuDisabler)
             end
         end
     
+        -- Step 4: Re-enable protected items
         for _, p in ipairs(self.protected_items) do
             if enabled_map[p.section] then
                 enabled_map[p.section][p.item] = true
@@ -91,8 +149,75 @@ return function(MenuDisabler)
                             local f = io.open(main_file, "r")
                             if f then
                                 local c = f:read("*all"); f:close()
-                                local name = c:match("menu_items%.([%w_]+)%s*=")
-                                if name then plugins[name] = file end
+                                for name in c:gmatch("menu_items%.([%w_]+)%s*=") do
+                                    if not plugins[name] then
+                                        local hint = nil
+                                        local body = c:match("menu_items%." .. name .. "%s*=%s*(%b{})")
+                                        if body then
+                                            hint = body:match('sorting_hint%s*=%s*"([%w_]+)"')
+                                               or body:match("sorting_hint%s*=%s*'([%w_]+)'")
+                                        end
+                                        plugins[name] = { folder = file, sorting_hint = hint }
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        -- Also scan ./patches/ for patch files that register menu items
+        local patches_path = base .. "patches"
+        if lfs.attributes(patches_path, "mode") == "directory" then
+            for file in lfs.dir(patches_path) do
+                if file ~= "." and file ~= ".." and file:match("%.lua$") then
+                    local patch_file = patches_path .. "/" .. file
+                    if lfs.attributes(patch_file, "mode") == "file" then
+                        local f = io.open(patch_file, "r")
+                        if f then
+                            local c = f:read("*all"); f:close()
+                            -- Extract target section from MenuOrder references
+                            local patch_section = nil
+                            for section in c:gmatch("[Mm]enu[Oo]rder%.([%w_]+)") do
+                                patch_section = section
+                            end
+                            -- Pattern 1: menu_items.name = (dot notation)
+                            for name in c:gmatch("menu_items%.([%w_]+)%s*=") do
+                                if not plugins[name] then
+                                    plugins[name] = { folder = "patch:" .. file, sorting_hint = patch_section }
+                                end
+                            end
+                            -- Pattern 2: menu_items["name"] or menu_items['name']
+                            for name in c:gmatch('menu_items%["([%w_]+)"%]%s*=') do
+                                if not plugins[name] then
+                                    plugins[name] = { folder = "patch:" .. file, sorting_hint = patch_section }
+                                end
+                            end
+                            for name in c:gmatch("menu_items%['([%w_]+)'%]%s*=") do
+                                if not plugins[name] then
+                                    plugins[name] = { folder = "patch:" .. file, sorting_hint = patch_section }
+                                end
+                            end
+                            -- Pattern 3/4: table.insert into MenuOrder tables with string literal
+                            for name in c:gmatch('table%.insert%([^%)]*[Mm]enu[Oo]rder[^,]*[,%s]+"([%w_]+)"') do
+                                if not plugins[name] then
+                                    plugins[name] = { folder = "patch:" .. file, sorting_hint = patch_section }
+                                end
+                            end
+                            for name in c:gmatch('table%.insert%([^%)]*[Mm]enu[Oo]rder[^,]*,%s*%d+%s*,%s*"([%w_]+)"') do
+                                if not plugins[name] then
+                                    plugins[name] = { folder = "patch:" .. file, sorting_hint = patch_section }
+                                end
+                            end
+                            -- Pattern 5: variable bracket notation - menu_items[var] = {...}
+                            if c:match("menu_items%[%a%w*%]%s*=") then
+                                for func_name in c:gmatch("local%s+function%s+(%w+)%s*%(") do
+                                    for item_name in c:gmatch(func_name .. '%s*%(%s*"([%w_]+)"') do
+                                        if not plugins[item_name] then
+                                            plugins[item_name] = { folder = "patch:" .. file, sorting_hint = patch_section }
+                                        end
+                                    end
+                                end
                             end
                         end
                     end
@@ -101,13 +226,9 @@ return function(MenuDisabler)
         end
         return plugins
     end
-
-    function MenuDisabler:saveChanges()
-        if not self.editing_cache then return end
-        local menu_type = self.editing_cache.type
-        local filename = self.editing_cache.filename
+    
+    function MenuDisabler:writeOrderFile(menu_type, filename, enabled_map)
         local system_struct = self:getSystemDefaultStructure(menu_type)
-        local enabled_map = self.editing_cache.data.enabled_map
     
         local disabled_list = {}
         local output_table = {}
@@ -154,7 +275,7 @@ return function(MenuDisabler)
         output_table["KOMenu:disabled"] = disabled_list
     
         local f = io.open(self.settings_path .. "/" .. filename, "w")
-        if not f then UIManager:show(InfoMessage:new{text=_("Error writing file")}) return end
+        if not f then return false end
     
         f:write("return {\n")
         for key, val in pairs(output_table) do
@@ -175,7 +296,19 @@ return function(MenuDisabler)
     
         f:write("}\n")
         f:close()
+        return true
+    end
     
+    function MenuDisabler:saveChanges()
+        if not self.editing_cache then return end
+        local menu_type = self.editing_cache.type
+        local filename = self.editing_cache.filename
+        local enabled_map = self.editing_cache.data.enabled_map
+    
+        if not self:writeOrderFile(menu_type, filename, enabled_map) then
+            UIManager:show(InfoMessage:new{text=_("Error writing file")})
+            return
+        end
         self:safeRestart()
     end
     
@@ -222,26 +355,74 @@ return function(MenuDisabler)
             return
         end
     
+        local plugins = self:getAvailablePlugins()
+    
         local output_table = {}
         local final_disabled_list = {}
+        local placed_items = {}
     
         if reader_def["KOMenu:disabled"] then
             for _, item in ipairs(reader_def["KOMenu:disabled"]) do
                 table.insert(final_disabled_list, item)
+                placed_items[item] = true
             end
         end
     
+        local known_sections = {}
         for section, items in pairs(reader_def) do
             if type(items) == "table" and not section:match("^KOMenu:") then
+                known_sections[section] = true
                 output_table[section] = {}
                 for _, item in ipairs(items) do
                     if item == "----------------------------" then
                         table.insert(output_table[section], item)
                     else
+                        placed_items[item] = true
                         if disabled_lookup[item] then
                             table.insert(final_disabled_list, item)
                         else
                             table.insert(output_table[section], item)
+                        end
+                    end
+                end
+            end
+        end
+    
+        -- Add discovered plugin items not in reader system defaults
+        for name, info in pairs(plugins) do
+            if not placed_items[name] then
+                placed_items[name] = true
+                local target = "more_tools"
+                if info.sorting_hint and known_sections[info.sorting_hint] then
+                    target = info.sorting_hint
+                end
+                if not output_table[target] then
+                    output_table[target] = {}
+                    known_sections[target] = true
+                end
+                if disabled_lookup[name] then
+                    table.insert(final_disabled_list, name)
+                else
+                    table.insert(output_table[target], name)
+                end
+            end
+        end
+    
+        -- Import non-system items from FM config sections
+        for section, items in pairs(fm_custom) do
+            if type(items) == "table" and not section:match("^KOMenu:") then
+                for _, item in ipairs(items) do
+                    if item ~= "----------------------------" and not placed_items[item] then
+                        placed_items[item] = true
+                        local target = known_sections[section] and section or "more_tools"
+                        if not output_table[target] then
+                            output_table[target] = {}
+                            known_sections[target] = true
+                        end
+                        if disabled_lookup[item] then
+                            table.insert(final_disabled_list, item)
+                        else
+                            table.insert(output_table[target], item)
                         end
                     end
                 end
