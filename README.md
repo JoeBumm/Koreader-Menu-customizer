@@ -1,5 +1,5 @@
 # Menu Disabler Plugin for KOReader
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/JoeBumm/Koreader-Menu-customizer?style=for-the-badge&color=orange)
+![GitHub release (latest by tag)](https://img.shields.io/github/v/tag/JoeBumm/Koreader-Menu-customizer?style=for-the-badge&color=orange&label=release)
 ![GitHub all releases](https://img.shields.io/github/downloads/JoeBumm/Koreader-Menu-customizer/total?style=for-the-badge&color=red) ![Platform](https://img.shields.io/badge/Platform-KOReader-success?style=for-the-badge&logo=koreader)
 
 ## "Where did all the buttons go?" — You, hopefully.
