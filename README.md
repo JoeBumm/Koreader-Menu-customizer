@@ -15,7 +15,7 @@ This plugin lets you hide the clutter so you can actually, *read*.
 *   **One-Click Sync**: Too lazy to configure the Reader menu after fixing the File Manager? Me too. Hit "Apply File Manager Layout to Reader" and be done with it.
 *   **Safety First**: I locked the critical stuff (Search, Settings, etc.) so you can't accidentally brick your experience and blame me.
 
-## How to Install (The Boring Part)
+## How to Install
 1.  Grab the ZIP from [Releases](https://github.com/JoeBumm/menu_customizer.koplugin/releases/).
 2.  Unzip it. You want the `menu_disabler.koplugin` folder.
 3.  Throw that folder into your KOReader plugins directory (`koreader/plugins/`).
