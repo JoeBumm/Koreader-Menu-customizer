@@ -25,15 +25,15 @@ This plugin lets you hide the clutter so you can actually, *read*.
 1.  Go to **More tools → Menu Disabler**.
 2.  Pick a mode (File Manager or Reader).
 3.  **Tap to hide/show items.** X means visible. [] means "gone to the shadow realm."
-4.  **SCROLL DOWN AND HIT SAVE.** If you don't save, it didn't happen.
+4.  **HIT SAVE.** If you don't save, it didn't happen. 
 
 ## Help! I Broke It!
 If you somehow managed to hide the "Un-hide" button or your device is acting possessed:
-*   **The Nuclear Option**: Delete `filemanager_menu_order.lua` and `reader_menu_order.lua` from your `koreader/settings/` folder.
-*   **The "I Give Up" Option**: Delete the plugin folder. KOReader will forgive you.
+*   **Try First** deleting the `filemanager_menu_order.lua` and `reader_menu_order.lua` from your `koreader/settings/` folder.
+*   **If it didn't work delete the plugin folder `menu_disabler.koplugin`. KOReader will forgive you.
 
 ## Support
-Found a bug? Have a suggestion? Want to tell me I'm funny?
+Found a bug? Have a suggestion? Want to tell a joke?
 Open an issue.
 
 **Disclaimer:** Always back up your settings. I tested this, but I'm just a person on the internet.
